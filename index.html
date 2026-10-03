@@ -1,0 +1,85 @@
+<!doctype html>
+<!--
+  掃床頭卡(LIFF)v1.00 2026/10/03
+  放在 GitHub Pages(repo 根目錄,檔名一定要 index.html)。
+  LIFF ID 已填好(2026/10/03,channel 掃床頭卡)。換 LIFF 時只改下面 LIFF_ID 引號裡。
+
+  做什麼:官方帳號聊天室下方選單按【掃床頭卡】→ 開相機 → 掃床頭卡上的 QR(內容 R:xxxx)
+         → 自動用「你自己」的身分在聊天室送出「#住民 機構-編號」→ LINE 機器人回「目前住民:…」→ 這個視窗自動關掉
+  ★ 只認床頭卡的 QR(R: 開頭);掃到別的 QR 不會送出任何東西
+  ★ 只能從官方帳號聊天室的選單打開(在其他地方打開會提示,不會送出)
+  ★ 這個網頁沒有任何密碼、名單或個資:住民姓名只在機器人那邊,有沒有開通也是機器人在管
+-->
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>掃床頭卡</title>
+<style>
+  body{margin:0;padding:24px 16px;font-family:"Microsoft JhengHei","PingFang TC",sans-serif;
+       background:#fff;color:#222;text-align:center}
+  #m{font-size:20px;line-height:1.6;margin-top:48px;white-space:pre-line}
+  button{font-size:20px;padding:14px 28px;margin-top:28px;border:0;border-radius:10px;
+         background:#06c755;color:#fff}
+  .err{color:#c00}
+</style>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+<div id="m">準備相機…</div>
+<button id="b" style="display:none">掃床頭卡</button>
+<script>
+const LIFF_ID = '2011848435-hrpzfquZ';
+
+const m = document.getElementById('m');
+const b = document.getElementById('b');
+function say(t, bad) { m.textContent = t; m.className = bad ? 'err' : ''; }
+function showBtn(t) { b.textContent = t || '再掃一次'; b.style.display = ''; }
+
+async function scanOnce() {
+  b.style.display = 'none';
+  say('對準床頭卡上的 QR…');
+  let v = '';
+  try {
+    const r = await liff.scanCodeV2();
+    v = String((r && r.value) || '').trim();
+  } catch (e) {
+    say('沒有開到相機(' + (e && e.message ? e.message : e) + ')\n請按下面的按鈕再試一次。', true);
+    showBtn('掃床頭卡');
+    return;
+  }
+  if (!v) { say('沒有掃到東西。'); showBtn(); return; }
+  if (v.indexOf('R:') !== 0) { say('這不是床頭卡的 QR,沒有送出。', true); showBtn(); return; }
+  let code = '';
+  try { code = decodeURIComponent(v.slice(2)).trim(); } catch (e) { code = ''; }
+  if (!code || code.length > 40) { say('這張床頭卡的 QR 讀不懂,請重新列印床頭卡。', true); showBtn(); return; }
+  try {
+    await liff.sendMessages([{ type: 'text', text: '#住民 ' + code }]);
+  } catch (e) {
+    say('送不出去(' + (e && e.message ? e.message : e) + ')\n請從官方帳號聊天室下方選單【掃床頭卡】打開。', true);
+    showBtn();
+    return;
+  }
+  say('已送出 ' + code + '\n請看聊天室的回覆。');
+  setTimeout(function () { liff.closeWindow(); }, 700);
+}
+
+b.onclick = scanOnce;
+
+liff.init({ liffId: LIFF_ID }).then(function () {
+  if (!liff.isInClient()) {
+    say('請在 LINE 官方帳號的聊天室,按下方選單【掃床頭卡】打開。', true);
+    return;
+  }
+  const ctx = liff.getContext();
+  if (!ctx || ctx.type !== 'utou') {
+    say('請從官方帳號聊天室下方選單【掃床頭卡】打開(從其他地方打開送不出訊息)。', true);
+    return;
+  }
+  scanOnce();
+}).catch(function (e) {
+  say('啟動失敗:' + (e && e.message ? e.message : e) + '\n(LIFF ID 有沒有貼對?)', true);
+});
+</script>
+</body>
+</html>
