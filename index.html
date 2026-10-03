@@ -1,6 +1,8 @@
 <!doctype html>
 <!--
-  掃床頭卡(LIFF)v1.00 2026/10/03
+  掃床頭卡(LIFF)v1.01 2026/10/04
+  v1.01:Android 改用 LINE 內建掃描器(liff.scanCode),不再每次跳「是否允許此網站使用您的相機」;
+         內建的叫不起來才改用網頁掃描器(scanCodeV2)。iPhone 照舊用網頁掃描器。
   放在 GitHub Pages(repo 根目錄,檔名一定要 index.html)。
   LIFF ID 已填好(2026/10/03,channel 掃床頭卡)。換 LIFF 時只改下面 LIFF_ID 引號裡。
 
@@ -36,13 +38,28 @@ const b = document.getElementById('b');
 function say(t, bad) { m.textContent = t; m.className = bad ? 'err' : ''; }
 function showBtn(t) { b.textContent = t || '再掃一次'; b.style.display = ''; }
 
+// v1.01:Android 先用 LINE 內建掃描器(用 LINE App 本身的相機權限,不會每次問)
+//        內建的 1.5 秒內就失敗 = 叫不起來 → 改用網頁掃描器;拖比較久才失敗 = 使用者自己按返回 → 不另外開相機
+async function readQR() {
+  if (liff.getOS() === 'android' && typeof liff.scanCode === 'function') {
+    const t0 = Date.now();
+    try {
+      const r = await liff.scanCode();
+      return String((r && r.value) || '').trim();
+    } catch (e) {
+      if (Date.now() - t0 > 1500) throw e;
+    }
+  }
+  const r2 = await liff.scanCodeV2();
+  return String((r2 && r2.value) || '').trim();
+}
+
 async function scanOnce() {
   b.style.display = 'none';
   say('對準床頭卡上的 QR…');
   let v = '';
   try {
-    const r = await liff.scanCodeV2();
-    v = String((r && r.value) || '').trim();
+    v = await readQR();
   } catch (e) {
     say('沒有開到相機(' + (e && e.message ? e.message : e) + ')\n請按下面的按鈕再試一次。', true);
     showBtn('掃床頭卡');
